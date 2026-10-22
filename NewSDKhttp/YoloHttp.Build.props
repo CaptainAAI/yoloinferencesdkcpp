@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Build settings for YoloHttp.dll: include paths, defines, libraries.
+
+  Dependency locations (not part of this repository):
+    OpenCVRoot - OpenCV 5.0 Windows build folder
+                 (contains include\opencv2 and x64\vc16\lib\opencv_world500.lib)
+    CurlRoot   - vcpkg x64-windows folder with curl and rapidjson
+                 (contains include\curl\curl.h, include\rapidjson, lib\libcurl.lib,
+                 bin\libcurl.dll and bin\z.dll; install with
+                 vcpkg install curl:x64-windows rapidjson:x64-windows)
+
+  Each one is taken from, in order:
+    1. an MSBuild property:      msbuild ... /p:OpenCVRoot=C:\deps\opencv\build\
+    2. an environment variable:  YOLOHTTP_OPENCV_ROOT / YOLOHTTP_CURL_ROOT
+    3. the default layout:       ..\..\library\opencv\build\ (relative to this file);
+                                 for CurlRoot %VCPKG_ROOT%\installed\x64-windows\,
+                                 then D:\vcpkg\installed\x64-windows\
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <!-- Yh* are internal copies: a property passed with /p: cannot be modified, so the trailing slash is added here -->
+    <YhOpenCVRoot Condition="'$(OpenCVRoot)' != ''">$(OpenCVRoot)</YhOpenCVRoot>
+    <YhOpenCVRoot Condition="'$(YhOpenCVRoot)' == '' and '$(YOLOHTTP_OPENCV_ROOT)' != ''">$(YOLOHTTP_OPENCV_ROOT)</YhOpenCVRoot>
+    <YhOpenCVRoot Condition="'$(YhOpenCVRoot)' == ''">$(MSBuildThisFileDirectory)..\..\library\opencv\build\</YhOpenCVRoot>
+    <YhOpenCVRoot>$([MSBuild]::EnsureTrailingSlash('$(YhOpenCVRoot)'))</YhOpenCVRoot>
+
+    <YhCurlRoot Condition="'$(CurlRoot)' != ''">$(CurlRoot)</YhCurlRoot>
+    <YhCurlRoot Condition="'$(YhCurlRoot)' == '' and '$(YOLOHTTP_CURL_ROOT)' != ''">$(YOLOHTTP_CURL_ROOT)</YhCurlRoot>
+    <YhCurlRoot Condition="'$(YhCurlRoot)' == '' and '$(VCPKG_ROOT)' != ''">$([MSBuild]::EnsureTrailingSlash('$(VCPKG_ROOT)'))installed\x64-windows\</YhCurlRoot>
+    <YhCurlRoot Condition="'$(YhCurlRoot)' == ''">D:\vcpkg\installed\x64-windows\</YhCurlRoot>
+    <YhCurlRoot>$([MSBuild]::EnsureTrailingSlash('$(YhCurlRoot)'))</YhCurlRoot>
+
+    <YhSrc>$(MSBuildThisFileDirectory)</YhSrc>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Third-party headers are "external": their warnings are not shown -->
+    <ExternalIncludePath>$(YhOpenCVRoot)include;$(YhCurlRoot)include;$(ExternalIncludePath)</ExternalIncludePath>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(YhSrc)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <PreprocessorDefinitions>YOLOHTTP_EXPORTS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <!-- Same runtime as the applications that use the DLL: /MD in every configuration -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(YhOpenCVRoot)x64\vc16\lib;$(YhCurlRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world500.lib;libcurl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- Stop early with a clear message when a dependency is missing -->
+  <Target Name="YoloHttpCheckDependencies" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Platform)' != 'x64'" Text="YoloHttp supports x64 only (current platform: $(Platform))." />
+    <Error Condition="!Exists('$(YhOpenCVRoot)include\opencv2\core.hpp')"
+           Text="OpenCV not found at '$(YhOpenCVRoot)'. Set YOLOHTTP_OPENCV_ROOT (or /p:OpenCVRoot=...) to the OpenCV 'build' folder. See README.md." />
+    <Error Condition="!Exists('$(YhCurlRoot)include\curl\curl.h') or !Exists('$(YhCurlRoot)include\rapidjson\document.h')"
+           Text="curl/rapidjson not found at '$(YhCurlRoot)'. Run 'vcpkg install curl:x64-windows rapidjson:x64-windows' and set YOLOHTTP_CURL_ROOT (or /p:CurlRoot=...) to vcpkg's installed\x64-windows folder. See README.md." />
+  </Target>
+
+  <!-- YoloHttp.dll loads libcurl.dll, which loads z.dll, plus opencv_world500.dll: put them next to it -->
+  <Target Name="YoloHttpCopyDlls" AfterTargets="Build">
+    <Copy SourceFiles="$(YhCurlRoot)bin\libcurl.dll;$(YhCurlRoot)bin\z.dll;$(YhOpenCVRoot)x64\vc16\bin\opencv_world500.dll"
+          DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

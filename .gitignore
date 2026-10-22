@@ -1,0 +1,9 @@
+# Build output
+bin/
+obj/
+.vs/
+*.user
+*.aps
+# Packed SDK (built by pack_sdk.ps1)
+YoloHttp-SDK/
+YoloHttp-SDK.zip

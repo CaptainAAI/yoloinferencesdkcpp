@@ -1,0 +1,19 @@
+YoloHttp SDK - third-party components
+=====================================
+
+YoloHttp.dll compiles in RapidJSON (header-only). The DLLs in bin\ other than
+YoloHttp.dll are shipped as is. Each component keeps its own license; the
+license texts are in this folder.
+
+Component                       License                    File
+------------------------------  -------------------------  ------------------------------
+libcurl (libcurl.dll)           curl License (MIT style)   curl-COPYING.txt
+zlib (z.dll, used by libcurl)   zlib License               zlib-LICENSE.txt
+RapidJSON                       MIT                        rapidjson-LICENSE.txt
+OpenCV 5.0 (opencv_world500)    Apache License 2.0         OpenCV-LICENSE.txt
+
+Upstream projects:
+  https://curl.se/
+  https://github.com/madler/zlib
+  https://github.com/Tencent/rapidjson
+  https://github.com/opencv/opencv

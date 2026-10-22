@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  YoloHttp SDK - property sheet for projects that use YoloHttp.dll.
+
+  Visual Studio 2022:
+    View -> Other Windows -> Property Manager -> right-click the project
+    -> Add Existing Property Sheet -> this file.
+  Then:
+    #include "YoloHttp.h"        (yolohttp::Client, Detect / DetectAsync / Draw)
+    #include <opencv2/...>       (OpenCV 5.0, opencv_world500)
+
+  Requirements: x64, /MD runtime (Release CRT), C++17; set here.
+  The DLLs in bin\ are copied next to the .exe after every build.
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <YoloHttpSdk>$(MSBuildThisFileDirectory)</YoloHttpSdk>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- SDK headers are "external": OpenCV warnings are not shown -->
+    <ExternalIncludePath>$(YoloHttpSdk)include;$(ExternalIncludePath)</ExternalIncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(YoloHttpSdk)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <!-- std::string / std::vector / std::future / cv::Mat cross the DLL boundary: same CRT as the DLL (/MD) -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <!-- _DEBUG + /MD changes the std::vector layout -> crash. VS Debug templates always define _DEBUG, so it is undefined here. -->
+      <UndefinePreprocessorDefinitions>_DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(YoloHttpSdk)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>YoloHttp.lib;opencv_world500.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Target Name="YoloHttpCheckPlatform" BeforeTargets="PrepareForBuild" Condition="'$(Platform)' != 'x64'">
+    <Error Text="The YoloHttp SDK supports x64 only (current platform: $(Platform))." />
+  </Target>
+
+  <!-- Copy the runtime DLLs next to the application -->
+  <Target Name="YoloHttpCopyDlls" AfterTargets="Build">
+    <ItemGroup>
+      <YoloHttpDll Include="$(YoloHttpSdk)bin\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(YoloHttpDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <iterator>
 #include <mutex>
 
 namespace yolohttp {
@@ -429,15 +430,62 @@ std::future<Result> Client::DetectAsync(const std::string& model, std::vector<ui
     });
 }
 
+// Ultralytics' plot palette (as BGR): a class gets the same colour as in
+// Ultralytics' own images, and none of them is black.
+static const cv::Scalar kPalette[] = {
+    {56, 56, 255}, {151, 157, 255}, {31, 112, 255}, {29, 178, 255}, {49, 210, 207},
+    {10, 249, 72}, {23, 204, 146}, {134, 219, 61}, {52, 147, 26}, {187, 212, 0},
+    {168, 153, 44}, {255, 194, 0}, {147, 69, 52}, {255, 115, 100}, {236, 24, 0},
+    {255, 56, 132}, {133, 0, 82}, {255, 56, 203}, {200, 149, 255}, {199, 55, 255},
+};
+
 void Draw(cv::Mat& frame, const std::vector<Detection>& dets)
 {
+    Draw(frame, dets, DrawOptions{});
+}
+
+void Draw(cv::Mat& frame, const std::vector<Detection>& dets, const DrawOptions& options)
+{
+    if (frame.empty())
+        return;
+    const int    thick     = options.thickness > 0 ? options.thickness : std::max(2, frame.cols / 640 * 2);
+    const double scale     = options.font_scale > 0 ? options.font_scale : std::max(0.4, frame.cols / 2000.0);
+    const int    textThick = std::max(1, thick / 2);
+    const int    font      = cv::FONT_HERSHEY_SIMPLEX;
+    const int    pad       = 3;
+    const cv::Rect bounds(0, 0, frame.cols, frame.rows);
+
     for (const auto& d : dets) {
-        // A stable colour per class id.
-        cv::Scalar col((d.class_id * 67) % 255, (d.class_id * 131) % 255, (d.class_id * 199) % 255);
-        cv::rectangle(frame, d.box, col, 2);
-        cv::putText(frame, d.label + " " + cv::format("%.2f", d.score),
-            cv::Point(d.box.x, std::max(d.box.y - 5, 15)),
-            cv::FONT_HERSHEY_SIMPLEX, 0.5, col, 2);
+        const cv::Scalar& col = kPalette[std::abs(d.class_id) % std::size(kPalette)];
+        if (options.boxes)
+            cv::rectangle(frame, d.box, col, thick);
+        if (!options.labels)
+            continue;
+
+        const std::string text = options.scores ? d.label + " " + cv::format("%.2f", d.score) : d.label;
+        int baseline = 0;
+        const cv::Size ts = cv::getTextSize(text, font, scale, textThick, &baseline);
+        const int tagW = ts.width + 2 * pad;
+        const int tagH = ts.height + baseline + 2 * pad;
+
+        // Above the box; below it when there is no room above; inside only as a last resort.
+        int y = d.box.y - tagH;
+        if (y < 0)
+            y = d.box.br().y + tagH <= frame.rows ? d.box.br().y : d.box.y;
+        const int x = std::min(std::max(d.box.x, 0), std::max(frame.cols - tagW, 0));
+        const cv::Rect tag = cv::Rect(x, y, tagW, tagH) & bounds;
+        if (tag.empty())
+            continue;
+
+        if (options.tag_alpha >= 1.0) {
+            frame(tag).setTo(col);
+        } else if (options.tag_alpha > 0.0) {
+            cv::Mat roi = frame(tag);
+            const cv::Mat fill(roi.size(), roi.type(), col);
+            cv::addWeighted(fill, options.tag_alpha, roi, 1.0 - options.tag_alpha, 0.0, roi);
+        }
+        const cv::Scalar textCol = options.tag_alpha > 0.0 ? cv::Scalar(255, 255, 255) : col;
+        cv::putText(frame, text, cv::Point(x + pad, y + pad + ts.height), font, scale, textCol, textThick, cv::LINE_AA);
     }
 }
 

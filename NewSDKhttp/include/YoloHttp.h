@@ -14,6 +14,12 @@
 //         std::cerr << r.error;
 //     yolohttp::Draw(frame, r.detections);                 // boxes + labels
 //
+// Boxes only, without the class names over the image:
+//
+//     yolohttp::DrawOptions opt;
+//     opt.labels = false;
+//     yolohttp::Draw(frame, r.detections, opt);
+//
 // Several models at the same time (each model runs on its own server thread,
 // so these requests do not wait for each other):
 //
@@ -159,8 +165,22 @@ private:
 
 #pragma warning(pop)
 
-// Draws each detection's box and "label score" text onto the image.
-// The image is modified in place; draw on a clone to keep the original.
+// How Draw() marks the detections. The defaults draw every box with a
+// "label score" tag on a see-through background.
+struct DrawOptions {
+    bool   boxes      = true;   // draw the box rectangles
+    bool   labels     = true;   // draw a tag with the class name next to each box
+    bool   scores     = true;   // add the score to the tag: "Particle 0.58"
+    double tag_alpha  = 0.6;    // tag background opacity: 1 = solid, 0 = text only
+    int    thickness  = 0;      // box line width in pixels; 0 = from the image width (2 px per 640 px)
+    double font_scale = 0;      // tag text size (OpenCV font scale); 0 = from the image width
+};
+
+// Draws each detection's box and "label score" tag onto the image. A tag sits
+// above its box, or below it when there is no room above, so it does not cover
+// the object itself. The image is modified in place; draw on a clone to keep
+// the original.
 YH_API void Draw(cv::Mat& frame, const std::vector<Detection>& dets);
+YH_API void Draw(cv::Mat& frame, const std::vector<Detection>& dets, const DrawOptions& options);
 
 }  // namespace yolohttp

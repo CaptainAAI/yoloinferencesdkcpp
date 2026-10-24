@@ -11,7 +11,7 @@ about the time of one.
 yolohttp::Client client("140.129.7.180:6767");        // once
 yolohttp::Result r = client.Detect("model1", frame);   // per image (cv::Mat, BGR)
 if (r.ok)
-    yolohttp::Draw(frame, r.detections);               // boxes + labels
+    yolohttp::Draw(frame, r.detections);               // boxes + labels (DrawOptions: boxes only, no scores, ...)
 else
     std::cerr << r.error << "\n";
 ```
@@ -171,8 +171,28 @@ Everything is in namespace `yolohttp`, declared in `NewSDKhttp/include/YoloHttp.
 
 ### `Draw`
 
-`void Draw(cv::Mat& frame, const std::vector<Detection>& dets)` draws each box and `label score` onto the image, in
-place. Each class has its own colour.
+`void Draw(cv::Mat& frame, const std::vector<Detection>& dets)` draws each box and a `label score` tag onto the image,
+in place. Each class has its own colour, from Ultralytics' plot palette (the dashboard uses the same colours). A tag
+sits above its box, or below it when the box touches the top edge, so
+it does not cover the object, and its background is see-through.
+
+`void Draw(cv::Mat& frame, const std::vector<Detection>& dets, const DrawOptions& options)` does the same with your
+choices:
+
+| `DrawOptions` field | Default | Meaning |
+| --- | --- | --- |
+| `bool boxes` | `true` | Draw the box rectangles |
+| `bool labels` | `true` | Draw the class-name tag next to each box |
+| `bool scores` | `true` | Add the score to the tag (`Particle 0.58`) |
+| `double tag_alpha` | `0.6` | Tag background opacity: 1 = solid, 0 = text only |
+| `int thickness` | `0` | Box line width in pixels; 0 = from the image width (2 px per 640 px) |
+| `double font_scale` | `0` | Tag text size (OpenCV font scale); 0 = from the image width |
+
+```cpp
+yolohttp::DrawOptions opt;
+opt.labels = false;                         // boxes only: nothing covers the area around the objects
+yolohttp::Draw(frame, r.detections, opt);
+```
 
 ### Structs
 

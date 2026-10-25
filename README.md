@@ -228,8 +228,10 @@ yolohttp::Draw(frame, r.detections, opt);
   in your image's pixels.
 - **Network.** Over Ethernet a request takes about 24 ms (server 20 ms); over Tailscale / Wi-Fi about 1 s. Use the
   Jetson's Ethernet address.
-- **C++/CLI (WinForms).** `YoloHttp.h` includes `<future>`, which Visual C++ refuses under `/clr`. Include the header
-  only in native `.cpp` files (Common Language RunTime Support: No) and call them from the form.
+- **C++/CLI (WinForms).** `YoloHttp.h` can be included straight in a form header (`/clr`, .NET Framework) with
+  Visual Studio 2022 and C++17, which `YoloHttp.props` sets; tested with a WinForms project. A `ref class` cannot hold
+  native objects by value, so keep the `Client` (and any `cv::Mat` / `std::vector`) as pointers:
+  `yolohttp::Client* client = new yolohttp::Client("rectech:6767");`, deleted in the form's destructor.
 
 ## Building from source
 
@@ -289,7 +291,7 @@ builds Release x64 and writes `YoloHttp-SDK\` and `YoloHttp-SDK.zip` (about 30 M
 | `HTTP 400: Uploaded file is not a decodable image` | The bytes passed to `Detect` are not an image |
 | Program does not start: `YoloHttp.dll` / `libcurl.dll` not found | The DLLs from `bin\` must be next to the `.exe` (`YoloHttp.props` copies them) |
 | Crash inside `std::vector` or `std::string` | The project uses `/MDd` or defines `_DEBUG`; use `YoloHttp.props` |
-| `error C1189: <future> is not supported when compiling with /clr` | Include `YoloHttp.h` only in native `.cpp` files |
+| `error C1189: <future> is not supported when compiling with /clr` | The project is not on C++17 or uses an older Visual Studio: add `YoloHttp.props`, or include `YoloHttp.h` only in native `.cpp` files |
 
 ## Third-party code
 
